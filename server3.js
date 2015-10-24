@@ -1,28 +1,28 @@
-var util = require('util');
-var http = require('http');
 var express = require('express');
 var passport = require('passport');
-var  GoogleStrategy = require('passport-google-oauth2').Strategy;
-//requiring in what was in express 3 natively
+var util = require('util');
 var methodOverride = require('method-override');
+var  GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var session = require('express-session');
 var logger = require('morgan');
-
+http = require('http');
 
 // API Access link for creating client ID and secret:
 // https://code.google.com/apis/console/
-// Get your codes here, put them in the .env file.
 var port = process.env.PORT || 3000;
-var GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
-var GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+var GOOGLE_CLIENT_ID =  process.env.GOOGLE_CLIENT_ID; //"375108974258-mc5k6qfg1mo3cejsse5ecr9vb4rduodu.apps.googleusercontent.com";
+var GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET; //"HIT2GBdyX0Pt92ZTszk4Phfk";
 
 
 // Passport session setup.
 //   To support persistent login sessions, Passport needs to be able to
-//   serialize users into and deserialize users out of the session. This isn't
-//   connected to a DB, so the whole profile object is being used.
+//   serialize users into and deserialize users out of the session.  Typically,
+//   this will be as simple as storing the user ID when serializing, and finding
+//   the user by ID when deserializing.  However, since this example does not
+//   have a database of user records, the complete Google profile is
+//   serialized and deserialized.
 passport.serializeUser(function(user, done) {
   done(null, user);
 });
@@ -31,19 +31,19 @@ passport.deserializeUser(function(obj, done) {
   done(null, obj);
 });
 
-// Use the GoogleStrategy within Passport
+// Use the GoogleStrategy within Passport.
 //   Strategies in Passport require a `verify` function, which accept
 //   credentials (in this case, an accessToken, refreshToken, and Google
 //   profile), and invoke a callback with a user object.
 passport.use(new GoogleStrategy({
     clientID: GOOGLE_CLIENT_ID,
     clientSecret: GOOGLE_CLIENT_SECRET,
-    callbackURL: "http://localhost:" + port + "/auth/google/return"
+    callbackURL: "http://localhost:3000/auth/google/return"
   },
   function(accessToken, refreshToken, profile, done) {
     // asynchronous verification
     process.nextTick(function () {
-    //with a real DB we'd return our own user object rather than the profile
+      //with a real DB we'd return our user object, but this is the google profile json.
       return done(null, profile);
     });
   }
@@ -52,16 +52,11 @@ passport.use(new GoogleStrategy({
 var app = express();
 
 // configure Express
-  app.use(logger('dev'));
+  app.use(logger());
   app.use(cookieParser());
-  app.use(bodyParser.json());
+  app.use(bodyParser());
   app.use(methodOverride());
-  app.use(session({
-    secret: 'helloNSA',
-    resave: true,
-    saveUninitialized: true
-    })
-  );
+  app.use(session({ secret: 'keyboard cat' }));
   app.use(passport.initialize());
   app.use(passport.session());
   //app.use(express.static(__dirname + '/public'));
@@ -94,8 +89,7 @@ app.get('/auth/google',
 //   Use passport.authenticate() as route middleware to authenticate the
 //   request.  If authentication fails, the user will be redirected back to the
 //   login page.  Otherwise, the primary route function function will be called,
-//   which, in this case, will redirect the user to the home page but display
-//   the google profile object.
+//   which, in this example, will redirect the user to the home page.
 app.get('/auth/google/return',
   passport.authenticate('google', { failureRedirect: '/login' }),
   function(req, res) {
@@ -107,9 +101,8 @@ app.get('/logout', function(req, res){
   res.redirect('/');
 });
 
-app.listen(port, function(){
-  console.log("server is up on port " + port);
-});
+app.listen(port);
+
 
 // Simple route middleware to ensure user is authenticated.
 //   Use this route middleware on any resource that needs to be protected.  If
@@ -118,5 +111,5 @@ app.listen(port, function(){
 //   login page.
 function ensureAuthenticated(req, res, next) {
   if (req.isAuthenticated()) { return next(); }
-  res.redirect('/');
+  res.redirect('/login');
 }
